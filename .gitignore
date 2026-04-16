@@ -1,0 +1,14 @@
+# Ignore sensitive config
+includes/config.php
+
+# Ignore logs
+*.log
+includes/otp_debug.log
+
+# Ignore local uploads (optional, if you don't want your test photos online)
+uploads/*
+!uploads/.gitkeep
+
+# Ignore OS junk
+Thumbs.db
+.DS_Store
