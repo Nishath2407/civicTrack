@@ -19,7 +19,7 @@ $stats = getStats();
   <h1><?= nl2br(te('hero_title')) ?></h1>
   <p><?= te('hero_sub') ?></p>
   <div class="hero-actions">
-    <a href="<?= APP_URL ?>/submit.php" class="btn btn-teal"><?= te('hero_btn_report') ?></a>
+    <a href="<?= APP_URL ?>/citizen/submit.php" class="btn btn-teal"><?= te('hero_btn_report') ?></a>
     <a href="<?= APP_URL ?>/track.php"  class="btn btn-outline"><?= te('hero_btn_track') ?></a>
   </div>
 </div>
