@@ -7,18 +7,23 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 
-// Ensure the user is logged in before showing the page
 requireLogin(); 
 
-// Use the helper from auth.php to get the current citizen's ID
 $citizen_id = citizenId();
-
-// Fetch only the complaints belonging to this logged-in citizen
 $my_complaints = getComplaints(['citizen_id' => $citizen_id]);
+
+// --- FETCH Global Stats ---
+$s = getStats(); 
+
+// --- CALCULATE PERCENTAGE SAFELY ---
+// If Total is 0, we set percent to 0 to avoid "Division by zero"
+$percentResolved = ($s['Total'] > 0) ? round(($s['Resolved'] / $s['Total']) * 100) : 0;
 
 $pageTitle = "My Reports";
 require_once __DIR__ . '/../includes/header.php';
 ?>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div class="page-hero">
     <h1>My Reported Issues</h1>
@@ -28,13 +33,37 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="section" style="max-width:800px">
     <?= renderFlash() ?>
 
+    <div class="card" style="border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; background: #fff;">
+        <div class="card-body">
+            <h2 style="margin-bottom: 20px; font-size: 1.1rem; color: var(--navy); display: flex; align-items: center; gap: 10px;">
+                📊 <span>City-Wide Progress Scenario</span>
+            </h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; align-items: center;">
+                <div style="height: 180px; position: relative;">
+                    <canvas id="citizenAnalytics"></canvas>
+                </div>
+
+                <div>
+                    <div style="background: #f0fff4; padding: 12px; border-radius: 10px; border-left: 4px solid #28a745; margin-bottom: 10px;">
+                        <span style="display: block; font-size: 0.75rem; color: #28a745; font-weight: bold; text-transform: uppercase;">Issues Resolved</span>
+                        <strong style="font-size: 1.4rem; color: var(--navy);"><?= $s['Resolved'] ?></strong>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #666; line-height: 1.5; margin: 0;">
+                        Currently, <strong><?= $percentResolved ?>%</strong> of all issues in the city have been successfully fixed. Your contributions are making a difference!
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <?php if (empty($my_complaints)): ?>
         <div class="card">
             <div class="card-body" style="text-align:center; padding:60px 20px;">
                 <div style="font-size: 50px; margin-bottom: 20px;">📋</div>
                 <h3 style="color:var(--navy)">No reports found</h3>
                 <p style="color:var(--text-muted); margin-bottom: 25px;">You haven't submitted any civic complaints yet.</p>
-                <a href="<?= APP_URL ?>/submit.php" class="btn btn-teal">Report an Issue Now</a>
+                <a href="<?= APP_URL ?>/citizen/submit.php" class="btn btn-teal">Report an Issue Now</a>
             </div>
         </div>
     <?php else: ?>
@@ -73,5 +102,34 @@ require_once __DIR__ . '/../includes/header.php';
         </p>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('citizenAnalytics').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Resolved', 'In Progress', 'Pending'],
+            datasets: [{
+                data: [<?= $s['Resolved'] ?>, <?= $s['In Progress'] ?>, <?= $s['Pending'] ?>],
+                backgroundColor: ['#28a745', '#17a2b8', '#ffc107'],
+                hoverOffset: 4,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            cutout: '70%',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 10, font: { size: 10 } }
+                }
+            }
+        }
+    });
+});
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
