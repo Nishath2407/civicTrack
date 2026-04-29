@@ -107,19 +107,34 @@ function getTimeline(string $id): array {
     );
 }
 
-/** Get dashboard statistics */
-/** Get dashboard statistics */
+/** * Get dashboard statistics 
+ * UPDATED: Added initialization to prevent "Undefined array key" errors
+ */
 function getStats(): array {
-   return DB::row(
-    "SELECT 
-        COUNT(*) AS total,
-        SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) AS pending,
-        SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress,
-        SUM(CASE WHEN status = 'Resolved' THEN 1 ELSE 0 END) AS resolved,
-        SUM(CASE WHEN status = 'Escalated' THEN 1 ELSE 0 END) AS escalated,
-        SUM(CASE WHEN priority = 'High' THEN 1 ELSE 0 END) AS highPriority
-     FROM complaints"
-    ) ?: ['total'=>0, 'pending'=>0, 'in_progress'=>0, 'resolved'=>0, 'escalated'=>0, 'highPriority'=>0];
+    // 1. Initialize keys to 0 so the frontend charts don't crash
+    $stats = [
+        'Total' => 0,
+        'Pending' => 0,
+        'In Progress' => 0,
+        'Resolved' => 0,
+        'Escalated' => 0,
+        'HighPriority' => 0
+    ];
+
+    // 2. Fetch counts per status
+    $rows = DB::rows("SELECT status, COUNT(*) as count FROM complaints GROUP BY status");
+    foreach ($rows as $row) {
+        $status = $row['status'];
+        if (array_key_exists($status, $stats)) {
+            $stats[$status] = (int)$row['count'];
+        }
+        $stats['Total'] += (int)$row['count'];
+    }
+
+    // 3. Fetch High Priority count specifically
+    $stats['HighPriority'] = (int)DB::value("SELECT COUNT(*) FROM complaints WHERE priority = 'High'");
+
+    return $stats;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -135,24 +150,30 @@ function generateComplaintId(): string {
 /** Create a new complaint record */
 function createComplaint(array $data, ?string $imagePath, ?int $citizenId = null): string {
     $id = generateComplaintId();
-    DB::exec(
-        "INSERT INTO complaints 
+    
+    $sql = "INSERT INTO complaints 
             (complaint_id, type, description, address, landmark, 
-             priority, status, citizen_name, citizen_phone, citizen_id, image_path)
-         VALUES (?,?,?,?,?,?,'Pending',?,?,?,?)",
-        [
-            $id,
-            $data['type'],
-            $data['description'],
-            $data['address'],
-            $data['landmark'] ?? '',
-            $data['priority'],
-            $data['name'],
-            $data['phone'],
-            $citizenId,
-            $imagePath,
-        ]
-    );
+             priority, status, citizen_name, citizen_phone, citizen_id, 
+             image_path, lat, lng)
+            VALUES (?,?,?,?,?,?,'Pending',?,?,?,?,?,?)";
+
+    $params = [
+        $id,                        // 1
+        $data['type'],              // 2
+        $data['description'],       // 3
+        $data['address'],           // 4
+        $data['landmark'] ?? '',    // 5
+        $data['priority'],          // 6
+        $data['name'],              // 7
+        $data['phone'],             // 8
+        $citizenId,                 // 9
+        $imagePath,                 // 10
+        $data['lat'] ?? null,       // 11
+        $data['lng'] ?? null        // 12
+    ];
+
+    DB::exec($sql, $params);
+    
     addTimeline($id, 'Complaint Submitted');
     return $id;
 }
@@ -161,7 +182,7 @@ function createComplaint(array $data, ?string $imagePath, ?int $citizenId = null
 function addTimeline(string $id, string $label, bool $isDone = true): void {
     DB::exec(
         "INSERT INTO complaint_timeline (complaint_id, label, event_date, is_done)
-         VALUES (?, ?, CURDATE(), ?)",
+         VALUES (?, ?, NOW(), ?)",
         [$id, $label, (int)$isDone]
     );
 }
@@ -234,7 +255,9 @@ function getCategories(): array {
     ];
 }
 
-/** Validate the complaint submission form */
+/** * Validate the complaint submission form 
+ * UPDATED: Includes GPS validation
+ */
 function validateComplaintForm(array $data): array {
     $errors = [];
     if (empty($data['type'])) $errors[] = 'Please select a complaint category.';
@@ -242,23 +265,25 @@ function validateComplaintForm(array $data): array {
     if (empty($data['address'])) $errors[] = 'Please provide the location/address.';
     if (empty($data['name'])) $errors[] = 'Reporter name is required.';
     if (empty($data['phone']) || !preg_match('/^[6-9]\d{9}$/', $data['phone'])) $errors[] = 'Valid 10-digit mobile number required.';
+    
+    // GPS Check
+    if (empty($data['lat']) || empty($data['lng'])) {
+        $errors[] = 'Please pin the exact location on the map.';
+    }
+    
     return $errors;
 }
 
 /**
  * Handles image uploads for complaints
- * Saves to root /uploads/ folder
  */
 function handleImageUpload(array $file): string {
-    // 1. Setup the target directory (absolute path to root)
     $targetDir = dirname(__DIR__) . '/uploads/';
     
-    // 2. Create folder if it doesn't exist
     if (!is_dir($targetDir)) {
         mkdir($targetDir, 0777, true);
     }
 
-    // 3. Validate file type
     $allowed = ['jpg', 'jpeg', 'png', 'webp'];
     $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     
@@ -266,15 +291,13 @@ function handleImageUpload(array $file): string {
         throw new RuntimeException("Invalid file type. Only JPG, PNG, and WebP allowed.");
     }
 
-    // 4. Create unique filename
     $filename = uniqid('IMG_', true) . '.' . $ext;
     $targetPath = $targetDir . $filename;
 
-    // 5. Move the file
     if (move_uploaded_file($file['tmp_name'], $targetPath)) {
         return 'uploads/' . $filename;
     }
 
     throw new RuntimeException("Failed to save the uploaded image.");
 }
-/** Temporary helper if you don't have a translation file yet */
+
