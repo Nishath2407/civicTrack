@@ -62,6 +62,25 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
   </div>
 
+  <?php if (!empty($c['lat']) && !empty($c['lng'])): ?>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div class="card" style="margin-bottom:22px;">
+        <div class="card-body">
+            <div class="form-section-title">Precise Map Location</div>
+            <div id="adminMap" style="height: 300px; width: 100%; border-radius: 8px; border: 1px solid var(--border); z-index:1;"></div>
+            <div style="margin-top: 10px; font-size: 13px; color: #666;">
+                <strong>Coordinates:</strong> <?= $c['lat'] ?>, <?= $c['lng'] ?> 
+                | <a href="https://www.google.com/maps/search/?api=1&query=<?= $c['lat'] ?>,<?= $c['lng'] ?>" target="_blank" style="color:var(--teal); font-weight:bold;">View on Google Maps</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        var map = L.map('adminMap').setView([<?= $c['lat'] ?>, <?= $c['lng'] ?>], 17);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.marker([<?= $c['lat'] ?>, <?= $c['lng'] ?>]).addTo(map).bindPopup("<b>Issue Spot</b>").openPopup();
+    </script>
+  <?php endif; ?>
   <div class="card" style="margin-bottom:22px; border-left: 5px solid var(--teal); background: #f4fdfb;">
     <div class="card-body">
       <h4 style="margin-bottom:15px; font-size: 16px;">🛠️ Update Issue Status</h4>
@@ -124,7 +143,5 @@ require_once __DIR__ . '/../includes/header.php';
   <div style="text-align:center; margin-top:30px;">
       <a href="<?= APP_URL ?>/admin/index.php" class="btn-ghost">← Back to Dashboard</a>
   </div>
-
 </div>
-
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
