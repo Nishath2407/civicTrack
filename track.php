@@ -56,7 +56,7 @@ $hasEscalated = !empty(array_filter($complaints, fn($c) => $c['status'] === 'Esc
 
   <div style="font-size:13.5px;color:var(--text-muted);margin-bottom:16px">
     <?= te('showing') ?> <strong style="color:var(--text)"><?= count($complaints) ?></strong>
-    <?= te('of') ?> <strong style="color:var(--text)"><?= (int)$stats['total'] ?></strong>
+    <?= te('of') ?> <strong style="color:var(--text)"><?= (int)$stats['Total'] ?></strong>
     <?= te('complaints') ?>
   </div>
 
