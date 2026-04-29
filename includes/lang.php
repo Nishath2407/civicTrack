@@ -51,19 +51,36 @@ function currentLang(): string {
 /**
  * Renders the language switcher HTML.
  */
-function langSwitcher(): string {
+function langSwitcher() {
     $current = currentLang();
-    $uri     = strtok($_SERVER['REQUEST_URI'], '?');
-    $params  = $_GET;
-    unset($params['lang']);
+    $langs = [
+        'en' => 'English',
+        'hi' => 'हिन्दी',
+        'te' => 'తెలుగు'
+    ];
 
-    $html = '<div class="lang-switcher">';
-    foreach (SUPPORTED_LANGS as $code => $label) {
-        $params['lang'] = $code;
-        $url = $uri . '?' . http_build_query($params);
-        $active = $current === $code ? ' lang-active' : '';
-        $html .= '<a href="' . htmlspecialchars($url) . '" class="lang-btn' . $active . '">' . htmlspecialchars($label) . '</a>';
+    $html = '<div class="lang-switcher" style="display: flex; justify-content: center; gap: 10px; margin-top: 15px; flex-wrap: wrap;">';
+    
+    foreach ($langs as $code => $label) {
+        $isActive = ($current == $code);
+        
+        // Active = Blue, Others = Grey
+        $bgColor = $isActive ? '#007bff' : '#6c757d'; 
+        
+        $html .= '<a href="?lang=' . $code . '" style="' .
+                 'background: ' . $bgColor . ';' .
+                 'color: white !important;' .
+                 'padding: 6px 14px;' .
+                 'border-radius: 6px;' .
+                 'text-decoration: none;' .
+                 'font-size: 13px;' .
+                 'font-weight: 500;' .
+                 'display: inline-block;' .
+                 'border: none;' .
+                 'box-shadow: 0 2px 4px rgba(0,0,0,0.1);' .
+                 '">' . $label . '</a>';
     }
+    
     $html .= '</div>';
     return $html;
 }
