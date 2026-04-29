@@ -23,9 +23,16 @@ $currentId    = citizenId();
 $pageTitle  = 'Report Issue';
 $activePage = 'submit';
 
-// --- FIX 1: Point to the correct header path ---
 require_once APP_ROOT . '/includes/header.php';
+?>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    #map { height: 350px; width: 100%; border-radius: 12px; margin-bottom: 15px; border: 1px solid #ddd; z-index: 1; }
+    .map-help { font-size: 0.85rem; color: #666; margin-bottom: 8px; display: block; }
+</style>
+
+<?php
 $errors = [];
 $old    = [];
 
@@ -61,11 +68,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'priority'    => trim($_POST['priority']),
                     'name'        => $prefillName,
                     'phone'       => $prefillPhone,
+                    'lat'         => $_POST['lat'] ?? null,
+                    'lng'         => $_POST['lng'] ?? null,
                 ], $imagePath, $currentId);
 
                 flash('success', "Complaint #{$newId} submitted!");
-                
-                // --- FIX 2: Correct Redirect Path ---
                 redirect(APP_URL . '/citizen/view.php?id=' . urlencode($newId));
 
             } catch (Exception $ex) {
@@ -143,6 +150,15 @@ $categories = getCategories();
         </div>
 
         <div class="form-section-title"><?= te('location_details') ?></div>
+        
+        <div class="form-group">
+            <label>Pin Exact Location <span class="req">*</span></label>
+            <small class="map-help">Click the map or drag the pin to indicate where the issue is occurring.</small>
+            <div id="map"></div>
+            <input type="hidden" name="lat" id="lat" value="<?= e($old['lat'] ?? '') ?>">
+            <input type="hidden" name="lng" id="lng" value="<?= e($old['lng'] ?? '') ?>">
+        </div>
+
         <div class="form-row">
           <div class="form-group">
             <label><?= te('full_address') ?> <span class="req">*</span></label>
@@ -192,7 +208,74 @@ $categories = getCategories();
   </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
+// --- Map Logic ---
+var defaultLat = 17.3850; 
+var defaultLng = 78.4867;
+
+var map = L.map('map').setView([defaultLat, defaultLng], 13);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+var marker;
+
+function updateInputs(lat, lng) {
+    document.getElementById('lat').value = lat.toFixed(6);
+    document.getElementById('lng').value = lng.toFixed(6);
+}
+
+function placeMarker(lat, lng) {
+    if (marker) {
+        marker.setLatLng([lat, lng]);
+    } else {
+        marker = L.marker([lat, lng], {draggable: true}).addTo(map);
+        marker.on('dragend', function(e) {
+            var pos = marker.getLatLng();
+            updateInputs(pos.lat, pos.lng);
+        });
+    }
+    updateInputs(lat, lng);
+}
+
+// 1. CLICK TO PIN
+map.on('click', function(e) {
+    placeMarker(e.latlng.lat, e.latlng.lng);
+});
+
+// 2. AUTOMATIC LOCATION ON LOAD
+map.locate({setView: true, maxZoom: 16});
+map.on('locationfound', function(e) {
+    placeMarker(e.latlng.lat, e.latlng.lng);
+});
+
+// 3. ADD "FIND MY LOCATION" BUTTON MANUALLY
+var locateControl = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd: function (map) {
+        var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+        container.style.backgroundColor = 'white';
+        container.style.width = '34px';
+        container.style.height = '34px';
+        container.style.lineHeight = '34px';
+        container.style.textAlign = 'center';
+        container.style.cursor = 'pointer';
+        container.innerHTML = '🎯'; // Target icon
+        container.title = "Find my live location";
+
+        container.onclick = function(e){
+            e.stopPropagation();
+            map.locate({setView: true, maxZoom: 16});
+        };
+        return container;
+    }
+});
+map.addControl(new locateControl());
+
+// --- Existing Form Logic ---
 function previewImg(input) {
   const p = document.getElementById('imgPreview');
   if (input.files && input.files[0]) {
@@ -210,7 +293,4 @@ function handleCategoryChange(val) {
 }
 </script>
 
-<?php 
-// --- FIX 3: Point to the correct footer path ---
-require_once APP_ROOT . '/includes/footer.php'; 
-?>
+<?php require_once APP_ROOT . '/includes/footer.php'; ?>
