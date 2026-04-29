@@ -8,7 +8,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\SMTP;
 
-// 2. LOAD PHPMailer Files (Ensure the folder name is 'PHPMailer')
+// 2. LOAD PHPMailer Files
 require_once __DIR__ . '/PHPMailer/Exception.php';
 require_once __DIR__ . '/PHPMailer/PHPMailer.php';
 require_once __DIR__ . '/PHPMailer/SMTP.php';
@@ -17,7 +17,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
 
 /**
- * Generates a numeric OTP of OTP_LENGTH digits.
+ * Generates a numeric OTP
  */
 function generateOtp(): string {
     $digits = defined('OTP_LENGTH') ? OTP_LENGTH : 6;
@@ -27,24 +27,19 @@ function generateOtp(): string {
 }
 
 /**
- * Stores a fresh OTP in the database.
- * FIX: Uses DELETE to prevent "Duplicate entry" Fatal Errors.
+ * Stores a fresh OTP in the database
  */
 function createOtp(string $phone): string {
-    // Clean up any old attempts first
     DB::exec("DELETE FROM otp_codes WHERE phone = ?", [$phone]);
-
     $otp = generateOtp();
     $expiry_minutes = defined('OTP_EXPIRY_MINS') ? OTP_EXPIRY_MINS : 10;
     $expiry = date('Y-m-d H:i:s', time() + $expiry_minutes * 60);
-
-    // This is now safe because the old record is gone
     DB::exec("INSERT INTO otp_codes (phone, otp, expires_at) VALUES (?, ?, ?)", [$phone, $otp, $expiry]);
     return $otp;
 }
 
 /**
- * Verifies an OTP for a given phone number.
+ * Verifies an OTP
  */
 function verifyOtp(string $phone, string $otp): bool {
     $row = DB::row(
@@ -53,23 +48,19 @@ function verifyOtp(string $phone, string $otp): bool {
          ORDER BY id DESC LIMIT 1",
         [$phone, $otp]
     );
-    
     if (!$row) return false;
-    
-    // Mark as used so it cannot be reused
     DB::exec("UPDATE otp_codes SET used = 1 WHERE id = ?", [$row['id']]);
     return true;
 }
 
 /**
- * Sends OTP via PHPMailer (Gmail SMTP)
+ * Sends OTP via PHPMailer
  */
 function sendOtp(string $phone, string $otp, ?string $email = null): bool {
     if ($email === null) {
         $email = $_SESSION['pending_email'] ?? null;
     }
 
-    // FALLBACK: If Demo Mode is ON, just log it to file
     if (defined('OTP_DEMO_MODE') && OTP_DEMO_MODE) {
         $logFile = __DIR__ . '/../otp_debug.log';
         $line    = '[' . date('Y-m-d H:i:s') . '] Phone: ' . $phone 
@@ -81,23 +72,23 @@ function sendOtp(string $phone, string $otp, ?string $email = null): bool {
 
     if (!$email) return false;
 
-    // 1. CREATE the object FIRST (Fixed the order here)
     $mail = new PHPMailer(true);
 
     try {
-        // 2. NOW set debug settings
-       // $mail->SMTPDebug = 2; 
-       // $mail->Debugoutput = 'html';
+        // --- DEBUG SETTINGS ---
+        $mail->SMTPDebug = 0; // Set to 2 if you still face issues to see logs
+        $mail->Debugoutput = 'html';
 
         // --- SMTP SERVER SETTINGS ---
         $mail->isSMTP();
         $mail->Host       = 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
         $mail->Username   = 'civictrackproject@gmail.com'; 
-        $mail->Password   = 'rmfxrcnmllhztnrl'; 
+       //$mail->password=   ;
         
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; 
-        $mail->Port       = 465;
+        // Use STARTTLS for Port 587
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; 
+        $mail->Port       = 587;
 
         // --- SSL FIX FOR XAMPP ---
         $mail->SMTPOptions = array(
@@ -127,7 +118,6 @@ function sendOtp(string $phone, string $otp, ?string $email = null): bool {
         $mail->send();
         return true;
     } catch (Exception $e) {
-        error_log("PHPMailer Error: {$mail->ErrorInfo}");
         return false;
     }
 }
