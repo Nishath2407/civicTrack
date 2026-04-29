@@ -1,6 +1,6 @@
 <?php
 /**
- * CivicTrack — index.php (Cleaned for Privacy)
+ * CivicTrack — index.php
  */
 $pageTitle  = 'Home';
 $activePage = 'home';
@@ -11,7 +11,8 @@ if (!class_exists('DB')) {
 }
 require_once __DIR__ . '/includes/header.php';
 
-$stats = getStats();
+// We are saving the data into $stats
+$stats = getStats(); 
 ?>
 
 <div id="hero">
@@ -25,10 +26,25 @@ $stats = getStats();
 </div>
 
 <div class="stats-bar">
-  <div class="stat-item"><span class="stat-num"><?= (int)$stats['total']    ?></span><span class="stat-label"><?= te('stat_total')     ?></span></div>
-  <div class="stat-item"><span class="stat-num"><?= (int)$stats['resolved'] ?></span><span class="stat-label"><?= te('stat_resolved')  ?></span></div>
-  <div class="stat-item"><span class="stat-num"><?= (int)$stats['pending']  ?></span><span class="stat-label"><?= te('stat_pending')   ?></span></div>
-  <div class="stat-item"><span class="stat-num"><?= (int)$stats['escalated']?></span><span class="stat-label"><?= te('stat_escalated') ?></span></div>
+  <div class="stat-item">
+    <div class="stat-number"><?= $stats['Total'] ?></div> 
+    <p>Total Complaints</p>
+  </div>
+
+  <div class="stat-item">
+    <div class="stat-number"><?= $stats['Resolved'] ?></div>
+    <p>Resolved</p>
+  </div>
+
+  <div class="stat-item">
+    <div class="stat-number"><?= $stats['Pending'] ?></div>
+    <p>Pending</p>
+  </div>
+
+  <div class="stat-item">
+    <div class="stat-number"><?= $stats['Escalated'] ?></div>
+    <p>Escalated</p>
+  </div>
 </div>
 
 <div class="section">
